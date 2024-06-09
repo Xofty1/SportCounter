@@ -6,6 +6,7 @@
 #include <QDebug>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <cmath>
 
 #include "data/Participant.cpp"
 #include "xlsxdocument.h"
@@ -27,6 +28,8 @@ public:
     int groupCount;
     vector<vector<Participant>> *participants;
     vector<double> *groups;
+    vector <QString>* colNames;
+
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
@@ -37,12 +40,14 @@ private slots:
 
     void on_pushButton_delete_group_clicked();
     vector<double>* read_groups();
-    void read_data(QString filePath, vector<double>* groups);
+    void read_data(QString filePath, vector<double>* groups, vector <QString>* colNames);
     void write_data(const std::vector<std::vector<Participant>>& participants);
     void processing_data( std::vector<std::vector<Participant>>& participants);
-
-private:
-    Ui::MainWindow *ui;
+    bool areEqual(double a, double b, double epsilon);
+    void write_column_names(QXlsx::Document &xlsx_output);
+    void write_results(QXlsx::Document &xlsx_output, size_t i);
+    private:
+        Ui::MainWindow *ui;
 };
 
 #endif // MAINWINDOW_H

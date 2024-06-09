@@ -13,10 +13,11 @@ private:
     vector<double> scores; // результаты соревнований
     int total_points;
     int place;
+    vector<int> points; // новое поле
 
 public:
     Participant(const QString& name, int number_of_team, int year, vector<double> scores)
-        : name(name), number_of_team(number_of_team),year(year), scores(scores), total_points(0), place(0) {}
+        : name(name), number_of_team(number_of_team), year(year), scores(scores), total_points(0), place(0), points() {}
 
     // Геттеры и сеттеры
     QString getName() const { return name; }
@@ -35,6 +36,15 @@ public:
     const vector<double>& getScores() const {
         return scores;
     }
+
+    // Получение всех баллов
+    const vector<int>& getPoints() const {
+        return points;
+    }
+
+    void addPoints(int point) {
+            points.push_back(point);
+        }
 
     // Печать информации об участнике
     void printParticipantInfo() const {

@@ -6,6 +6,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+    colNames = new vector<QString>();
     groupCount = 1;
     participants = new vector<vector<Participant>>();
     ui->setupUi(this);
@@ -20,7 +21,7 @@ void MainWindow::on_pushButton_answer_clicked()
 {
     QString filePath = QFileDialog::getOpenFileName(this, tr("Выберите файл Excel"), "", tr("Файлы Excel (*.xlsx *.xls)"));
     groups = read_groups();
-    read_data(filePath, groups);
+    read_data(filePath, groups,colNames);
     processing_data(*participants);
     write_data(*participants);
 
@@ -81,7 +82,7 @@ void MainWindow::on_pushButton_delete_group_clicked()
     ui->gridLayout_groups->invalidate();
 }
 
-void MainWindow::read_data(QString filePath, vector<double>* groups){
+void MainWindow::read_data(QString filePath, vector<double>* groups,vector <QString>* colNames){
     int emptyRow = -1;
     if (!filePath.isEmpty()) {
         QXlsx::Document xlsx(filePath);
@@ -90,6 +91,10 @@ void MainWindow::read_data(QString filePath, vector<double>* groups){
         }
         else{
             qDebug() << "Count Columns " << xlsx.dimension().columnCount();
+
+            for (int col = 1; col <= xlsx.dimension().columnCount(); ++col){
+                colNames->push_back(xlsx.read(1, col).toString());
+            }
             for (int row = 2; row <= xlsx.dimension().rowCount(); ++row) {
                 QString name = xlsx.read(row, 2).toString();
                 QVariant yearVariant = xlsx.read(row, 3);
@@ -178,69 +183,116 @@ vector<double>* MainWindow::read_groups(){
     return groups;
 }
 
+
+void MainWindow::write_column_names(QXlsx::Document &xlsx_output){
+    QChar columnLetter = 'A';
+    for (int n = 0; n < colNames->size();++n){
+
+        xlsx_output.write(QString("%1%2").arg(columnLetter).arg(1),colNames->at(n));
+        columnLetter = QChar((columnLetter).unicode() + 1);
+        if (n > 3){
+            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(1),"Место");
+            columnLetter = QChar((columnLetter).unicode() + 1);
+        }
+    }
+     xlsx_output.write(QString("%1%2").arg(columnLetter).arg(1),"Общее место");
+     columnLetter = QChar((columnLetter).unicode() + 1);
+     xlsx_output.write(QString("%1%2").arg(columnLetter).arg(1),"Всего очков");
+}
+
+void MainWindow::write_results(QXlsx::Document &xlsx_output, size_t i){
+    int shift = 2;// сдвиг на самом деле на 1 меньше чем shift
+    for (size_t j = 0; j < (*participants)[i].size(); ++j) {
+        QString participantName = (*participants)[i].at(j).getName();
+        QChar columnLetter = 'B';
+
+        xlsx_output.write(QString("A%1").arg(j+shift),j+1);
+        xlsx_output.write(QString("%1%2").arg(columnLetter ).arg(j + shift), participantName);  // Записываем имя в колонку A
+
+        columnLetter = QChar((columnLetter).unicode() + 1);
+
+        xlsx_output.write(QString("%1%2").arg(columnLetter ).arg(j + shift), (*participants)[i].at(j).getYear());
+
+         columnLetter = QChar((columnLetter).unicode() + 1);
+
+        xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), (*participants)[i].at(j).getNumberOfTeam());
+        const auto& scores = (*participants)[i].at(j).getScores();
+        const auto& points = (*participants)[i].at(j).getPoints();
+        for (size_t score = 0; score < scores.size(); ++score) {
+            // Буква столбца для результатов, начинаем с 'B' (столбец 2)
+            columnLetter = QChar((columnLetter).unicode() + 1);
+            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), scores[score]);
+            columnLetter = QChar((columnLetter).unicode() + 1);
+            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), points[score]);
+        }
+
+        columnLetter = QChar((columnLetter).unicode() + 1);
+        xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), (*participants)[i].at(j).getPlace());
+        columnLetter = QChar((columnLetter).unicode() + 1);
+        xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), (*participants)[i].at(j).getTotalPoints());
+    }
+}
+
 void MainWindow::write_data(const std::vector<std::vector<Participant>>& participants) {
     QXlsx::Document xlsx_output;
     int forName = 0;
+
     for (size_t i = 0; i < participants.size(); ++i) {
         // Создаем новый лист с именем "GroupX", где X - номер группы
         QString sheetName = QString::number(groups->at(forName)) + " - " + QString::number(groups->at(forName+1));
         forName+=2;
         xlsx_output.addSheet(sheetName);
         xlsx_output.selectSheet(sheetName);
-
-        // Записываем имена участников в лист
-        for (size_t j = 0; j < participants[i].size(); ++j) {
-            QString participantName = participants[i][j].getName();
-            QChar columnLetter = 'A';
-            xlsx_output.write(QString("A%1").arg(j + 1), participantName);  // Записываем имя в колонку A
-            size_t score;
-            for (score = 0; score < participants[i][j].getScores().size();++score){
-                xlsx_output.write(QString("%1%2").arg(columnLetter+score + 1).arg(j + 1), participants[i][j].getScores().at(score));
-            }
-            xlsx_output.write(QString("%1%2").arg(columnLetter+score + 1).arg(j + 1), participants[i][j].getPlace());
-            const auto& scores = participants[i][j].getScores();
-                       for (size_t score = 0; score < scores.size(); ++score) {
-                           // Буква столбца для результатов, начинаем с 'B' (столбец 2)
-                           QChar columnLetter = QChar(((QChar)'B').unicode() + static_cast<int>(score));
-                           xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + 1), scores[score]);
-                       }
-
-                       // Записываем место
-                       QChar placeColumnLetter = QChar(((QChar)'B').unicode() + static_cast<int>(scores.size()));
-                       xlsx_output.write(QString("%1%2").arg(placeColumnLetter).arg(j + 1), participants[i][j].getPlace());
-
-        }
+        write_column_names(xlsx_output);
+        qDebug() << i;
+        write_results(xlsx_output, i);
     }
-
     if (!xlsx_output.saveAs("output.xlsx")) {
         QMessageBox::warning(this, "Ошибка", "Не удалось сохранить файл");
     }
 }
 
 
+
+bool MainWindow::areEqual(double a, double b, double epsilon) {
+    return fabs(a - b) < epsilon;
+}
+
+
 void MainWindow::processing_data(std::vector<std::vector<Participant>>& participants) {
+
     for (size_t i = 0; i < participants.size(); ++i) {
         // Сортируем результаты по очкам для каждого соревнования
         for (size_t competitive = 0; competitive < participants[i][0].getScores().size(); ++competitive) {
             std::sort(participants[i].begin(), participants[i].end(), [competitive](const Participant &a, const Participant &b) {
                 return a.getScores().at(competitive) > b.getScores().at(competitive); // Для сортировки по убыванию результатов
             });
-
+            int points = 1;
             // Обновляем общее количество очков участников
-            for (size_t points = 0; points < participants[i].size(); ++points) {
-                participants[i][points].setTotalPoints(participants[i][points].getTotalPoints() + points + 1);
+            for (size_t j = 0; j < participants[i].size()-1; ++j) {
+                participants[i][j].setTotalPoints(participants[i][j].getTotalPoints() + points);
+                participants[i][j].addPoints(points);
+                if (!areEqual(participants[i][j].getScores().at(competitive), participants[i][j+1].getScores().at(competitive), 1e-4)) {
+                    points++;
+                }
             }
+            participants[i][participants[i].size()-1].setTotalPoints(participants[i][participants[i].size()-1].getTotalPoints() + points);
         }
 
         // Сортируем результаты по общему количеству очков
-        std::sort(participants[i].begin(), participants[i].end(), [](const Participant &a, const Participant &b) {
+        sort(participants[i].begin(), participants[i].end(), [](const Participant &a, const Participant &b) {
             return a.getTotalPoints() < b.getTotalPoints(); // Для сортировки по убыванию общего количества очков
         });
-
+        int place = 1;
         // Обновляем места участников
-        for (size_t place = 0; place < participants[i].size(); ++place) {
-            participants[i][place].setPlace(place + 1);
+        for (size_t t = 0; t < participants[i].size()-1; ++t) {
+            participants[i][t].setPlace(place);
+            if (participants[i][t].getPlace() != participants[i][t+1].getPlace()){
+                place ++;
+            }
         }
+        participants[i][participants[i].size()-1].setPlace(place);
+
     }
 }
 
