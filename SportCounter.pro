@@ -33,13 +33,16 @@ include(./QXlsx.pri)
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    data/Participant.cpp
+    data/Participant.cpp \
+    createcompetition.cpp
 
 HEADERS += \
-        mainwindow.h
+        mainwindow.h \
+    createcompetition.h
 
 FORMS += \
-        mainwindow.ui
+        mainwindow.ui \
+    createcompetition.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

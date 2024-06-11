@@ -27,48 +27,30 @@
      <string>Посчитать</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_add_group">
+   <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>410</x>
-      <y>40</y>
-      <width>93</width>
+      <x>770</x>
+      <y>270</y>
+      <width>55</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>TextLabel</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_createCompetition">
+    <property name="geometry">
+     <rect>
+      <x>700</x>
+      <y>500</y>
+      <width>191</width>
       <height>28</height>
      </rect>
     </property>
     <property name="text">
-     <string>+</string>
-    </property>
-   </widget>
-   <widget class="QWidget" name="gridLayoutWidget">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>20</y>
-      <width>361</width>
-      <height>611</height>
-     </rect>
-    </property>
-    <layout class="QGridLayout" name="gridLayout_groups" columnstretch="0,0">
-     <item row="0" column="1">
-      <widget class="QLineEdit" name="lineEdit_to"/>
-     </item>
-     <item row="0" column="0">
-      <widget class="QLineEdit" name="lineEdit_from"/>
-     </item>
-    </layout>
-   </widget>
-   <widget class="QPushButton" name="pushButton_delete_group">
-    <property name="geometry">
-     <rect>
-      <x>540</x>
-      <y>40</y>
-      <width>93</width>
-      <height>28</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>-</string>
+     <string>Создать соревнования</string>
     </property>
    </widget>
   </widget>
