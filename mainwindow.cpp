@@ -6,187 +6,216 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-    colNames = new vector<QString>();
     groupCount = 0;
-    participants = new vector<vector<Participant>>();
+
     ui->setupUi(this);
     setAcceptDrops(true);
     createCompetition = new CreateCompetition();
+    infoWindow = new InfoWindow();
     connect(createCompetition, &CreateCompetition::signalGroup, this, &MainWindow::slotGroup);
     connect(createCompetition, &CreateCompetition::signalCompetitionType, this, &MainWindow::slotCompetitionType);
+    ui->pushButton_answer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+    clear_data();
 }
 
 void MainWindow::on_pushButton_answer_clicked()
 {
-    if (filePath == NULL)
-        filePath = QFileDialog::getOpenFileName(this, tr("Выберите файл Excel"), "", tr("Файлы Excel (*.xlsx *.xls)"));
-    read_data(filePath, groups,colNames);
-    processing_data(*participants);
-    write_data(*participants);
-}
+    if (groups == nullptr || groups->size() == 0){
+        QMessageBox::warning(this, "Ошибка", "Выберите возрастные категории");
+    }
+    else{
 
-void MainWindow::read_data(QString filePath, vector<double>* groups,vector <QString>* colNames){
-    int emptyRow = -1;
-    if (!filePath.isEmpty()) {
-        QXlsx::Document xlsx(filePath);
-        if (!xlsx.load()) {
-            QMessageBox::warning(this, "Ошибка", "Невозможно считать данные");
+        if (filePath.isEmpty()){
+            QMessageBox::warning(this, "Ошибка", "Выберите файл с данными участников");
+            return;
         }
-        else{
-            for (int col = 1; col <= xlsx.dimension().columnCount(); ++col){
-                colNames->push_back(xlsx.read(1, col).toString());
-            }
-            for (int row = 2; row <= xlsx.dimension().rowCount(); ++row) {
-                QString name = xlsx.read(row, 2).toString();
-                QVariant yearVariant = xlsx.read(row, 3);
-                QVariant teamVariant = xlsx.read(row, 4);
-                // Проверка, что все значения не пустые и не нулевые
-                if (!name.isEmpty() && yearVariant.isValid() && !yearVariant.isNull() && teamVariant.isValid() && !teamVariant.isNull()) {
-                    int year = yearVariant.toInt();
-                    int number_of_team = teamVariant.toInt();
-                    vector<double> * scores = new vector<double>();
-                    int *emptyCell = new int [2];
-                    emptyCell[0] = -1;
-                    if (competitionType == 0){
-                        for (int col = 5; col <= xlsx.dimension().columnCount();++col){
-                            QVariant scoreVariant = xlsx.read(row, col);
-                            if (scoreVariant.isValid() && !scoreVariant.isNull())
-                                scores->push_back(scoreVariant.toDouble());
-                            else{
-                                emptyCell[1] = row;
-                                emptyCell[0] = col;
-                                break;
-                            }
-                        }
-                        if (emptyCell[0] != -1)
-                        {
-                            QChar columnLetter = 'A' + emptyCell[0]-1;
-
-                            // Преобразуем номер строки (индекс) в число
-                            QString cellPosition = QString("%1%2").arg(columnLetter).arg(emptyCell[1] + 1);
-
-                            // Формируем сообщение с предупреждением
-                            QString message = QString("Проверьте содержимое клетки %1").arg(cellPosition);
-
-                            // Отображаем предупреждающее сообщение
-                            QMessageBox::warning(this, "Ошибка", message);
-                            continue;
-                        }
-                        bool added = false;
-                        for (size_t i = 0; i+1 <= groups->size();i+=2){
-                            if (year >= groups->at(i) and year <= groups->at(i+1))
-                            {
-                                while (participants->size() <= i / 2) {
-                                    participants->emplace_back();
-                                }
-                                Participant newParticipant(name, number_of_team, year,*scores);
-                                (*participants)[i/2].push_back(newParticipant);
-                                added = true;
-                                break;
-                            }
-
-                        }
-                        if (!added){
-                            QMessageBox::warning(this, "Ошибка", "Участник в строке " +  QString::number(row) + " не соответствует ни одной возрастной группе");
-                        }
-                    }
-                    else{
-                        if (competitionType == 1){
-
-                            QXlsx::Cell *startCell = xlsx.cellAt(row, 6);
-                            QXlsx::Cell *endCell = xlsx.cellAt(row, 5);
-                            QTime start;
-                            QTime end;
-                            QVariant penaltyLoopVariant = xlsx.read(row, 8);
-                            int penalty_loop;
-                            if (penaltyLoopVariant.isValid() && !penaltyLoopVariant.isNull()){
-                                penalty_loop = penaltyLoopVariant.toInt();
-                            }
-                            else{
-                                QMessageBox::warning(this, "Ошибка", "Ячейка G" + QString::number(row) + " пуста или не существует");
-                            }
-                            if (startCell) {
-                                if (startCell->cellType() == QXlsx::Cell::DateType){
-                                    QMessageBox::warning(this, "Ошибка", "Время " + startCell->value().toTime().toString());
-                                }
-                                QString cellValue = startCell->value().toString(); // Получаем значение ячейки как строку
-                                QStringList timeParts = cellValue.split('.');
-                                int hours = timeParts[0].toInt();
-                                int minutes = timeParts[1].toInt();
-                                int seconds = timeParts[2].toInt();
-
-                                // Создаем объект QTime
-                                QTime time(hours, minutes, seconds);
-
-
-
-                                start = time; // Преобразуем строк
-                                if (start.isValid()) {
-                                    std::cout << "Время из ячейки: " << start.toString("hh:mm:ss").toStdString() << std::endl;
-                                } else {
-                                    QMessageBox::warning(this, "Ошибка", "Невалиное время в ячейке");
-
-                                }
-                            } else {
-                                QMessageBox::warning(this, "Ошибка", "Ячейка E" + QString::number(row) + " пуста или не существует");
-                            }
-                            if (endCell) {
-                                //                                end = endCell->value().toTime(); // Преобразуем строку в QTime
-                                QString cellValue = endCell->value().toString(); // Получаем значение ячейки как строку
-                                QStringList timeParts = cellValue.split('.');
-                                int hours = timeParts[0].toInt();
-                                int minutes = timeParts[1].toInt();
-                                int seconds = timeParts[2].toInt();
-
-                                // Создаем объект QTime
-                                QTime time(hours, minutes, seconds);
-                                end = time;
-                                if (end.isValid()) {
-                                    std::cout << "Время из ячейки: " << end.toString("hh:mm:ss").toStdString() << std::endl;
-                                } else {
-                                    QMessageBox::warning(this, "Ошибка", "Невалиное время в ячейке");
-
-                                }
-                            } else {
-                                QMessageBox::warning(this, "Ошибка", "Ячейка F" + QString::number(row) + " пуста или не существует");
-                            }
-
-                            bool added = false;
-                            for (size_t i = 0; i+1 <= groups->size();i+=2){
-                                if (year >= groups->at(i) and year <= groups->at(i+1))
-                                {
-                                    while (participants->size() <= i / 2) {
-                                        participants->emplace_back();
-                                    }
-                                    Participant newParticipant(name, number_of_team, year,start,end, QTime(0, 0).addSecs(start.secsTo(end)),penalty_loop);
-                                    (*participants)[i/2].push_back(newParticipant);
-                                    added = true;
-                                    break;
-                                }
-
-                            }
-                            if (!added){
-                                QMessageBox::warning(this, "Ошибка", "Участник в строке " +  QString::number(row) + " не соответствует ни одной возрастной группе");
-                            }
-                        }
-
-                    }
-                } else {
-                    emptyRow = row;
-                }
-            }
-        }
-        if (emptyRow != -1)
-        {
-            QMessageBox::warning(this, "Ошибка", "Данные в строке " + QString::number(emptyRow) + " имеют пустые поля");
-        }
+        participants = new std::vector<std::vector<Participant>>();
+        colNames = new std::vector<QString>();
+        read_data(filePath, groups,colNames);
+        processing_data(*participants);
+        write_data(*participants);
+        clear_data();
     }
 }
+void MainWindow::clear_data() {
+    // Освобождаем память от participants
+    if (participants != nullptr) {
+        for (size_t i = 0; i < participants->size(); ++i) {
+            (*participants)[i].clear(); // Очищаем внутренние вектора
+        }
+        participants->clear(); // Очищаем внешний вектор
+        delete participants; // Освобождаем память, выделенную для внешнего вектора
+        participants = nullptr; // Устанавливаем указатель на nullptr
+    }
+
+    // Освобождаем память от colNames
+    if (colNames != nullptr) {
+        colNames->clear(); // Очищаем вектор строк
+        delete colNames; // Освобождаем память, выделенную для вектора строк
+        colNames = nullptr; // Устанавливаем указатель на nullptr
+    }
+}
+
+void MainWindow::read_data(QString filePath, vector<double>* groups, vector<QString>* colNames) {
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QXlsx::Document xlsx(filePath);
+    if (!xlsx.load()) {
+        QMessageBox::warning(this, "Ошибка", "Невозможно считать данные");
+        return;
+    }
+
+    readColumnNames(xlsx, colNames);
+    readParticipants(xlsx, groups);
+}
+
+void MainWindow::readColumnNames(QXlsx::Document& xlsx, vector<QString>* colNames) {
+    for (int col = 1; col <= xlsx.dimension().columnCount(); ++col) {
+        colNames->push_back(xlsx.read(1, col).toString());
+    }
+}
+
+void MainWindow::readParticipants(QXlsx::Document& xlsx, vector<double>* groups) {
+    int emptyRow = -1;
+
+    for (int row = 2; row <= xlsx.dimension().rowCount(); ++row) {
+        QString name = xlsx.read(row, 2).toString();
+        QVariant yearVariant = xlsx.read(row, 3);
+        QVariant teamVariant = xlsx.read(row, 4);
+
+        if (!name.isEmpty() && yearVariant.isValid() && !yearVariant.isNull() && teamVariant.isValid() && !teamVariant.isNull()) {
+            int year = yearVariant.toInt();
+            int number_of_team = teamVariant.toInt();
+            vector<double> scores;
+
+            if (competitionType == 0) {
+                if (!processCompetitionType0(xlsx, row, scores)) {
+                    continue;
+                }
+                addParticipant(groups, name, number_of_team, year, scores, row);
+            } else if (competitionType == 1) {
+                QTime start, end;
+                int penalty_loop;
+
+                if (!processCompetitionType1(xlsx, row, start, end, penalty_loop)) {
+                    continue;
+                }
+                addParticipant(groups, name, number_of_team, year, start, end, penalty_loop, row);
+            }
+        } else {
+            emptyRow = row;
+        }
+    }
+
+    if (emptyRow != -1) {
+        QMessageBox::warning(this, "Ошибка", "Данные в строке " + QString::number(emptyRow) + " имеют пустые поля");
+    }
+}
+
+bool MainWindow::processCompetitionType0(QXlsx::Document& xlsx, int row, vector<double>& scores) {
+    for (int col = 5; col <= xlsx.dimension().columnCount(); ++col) {
+        QVariant scoreVariant = xlsx.read(row, col);
+        if (scoreVariant.isValid() && !scoreVariant.isNull()) {
+            scores.push_back(scoreVariant.toDouble());
+        } else {
+            QChar columnLetter = 'A' + col - 1;
+            QString cellPosition = QString("%1%2").arg(columnLetter).arg(row + 1);
+            QString message = QString("Проверьте содержимое клетки %1").arg(cellPosition);
+            QMessageBox::warning(this, "Ошибка", message);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MainWindow::processCompetitionType1(QXlsx::Document& xlsx, int row, QTime& start, QTime& end, int& penalty_loop) {
+    QXlsx::Cell* startCell = xlsx.cellAt(row, 6);
+    QXlsx::Cell* endCell = xlsx.cellAt(row, 5);
+    QVariant penaltyLoopVariant = xlsx.read(row, 7);
+
+    if (penaltyLoopVariant.isValid() && !penaltyLoopVariant.isNull()) {
+        penalty_loop = penaltyLoopVariant.toInt();
+    } else {
+        QMessageBox::warning(this, "Ошибка", "Ячейка G" + QString::number(row) + " пуста или не существует");
+        return false;
+    }
+
+    if (startCell && endCell) {
+        start = convertToTime(startCell);
+        end = convertToTime(endCell);
+
+        if (!start.isValid() || !end.isValid()) {
+            QMessageBox::warning(this, "Ошибка", "Невалиное время в ячейке");
+            return false;
+        }
+    } else {
+        QMessageBox::warning(this, "Ошибка", "Ячейки E или F" + QString::number(row) + " пусты или не существуют");
+        return false;
+    }
+
+    return true;
+}
+
+QTime MainWindow::convertToTime(QXlsx::Cell* cell) {
+    QString cellValue = cell->value().toString();
+    QStringList timeParts = cellValue.split('.');
+
+    int hours = timeParts[0].toInt();
+    int minutes = timeParts[1].toInt();
+    int seconds = timeParts[2].toInt();
+
+    return QTime(hours, minutes, seconds);
+}
+
+void MainWindow::addParticipant(vector<double>* groups, const QString& name, int number_of_team, int year, const vector<double>& scores, int row) {
+    bool added = false;
+
+    for (size_t i = 0; i + 1 <= groups->size(); i += 2) {
+        if (year >= groups->at(i) && year <= groups->at(i + 1)) {
+            while (participants->size() <= i / 2) {
+                participants->emplace_back();
+            }
+
+            Participant newParticipant(name, number_of_team, year, scores);
+            (*participants)[i / 2].push_back(newParticipant);
+            added = true;
+            break;
+        }
+    }
+
+    if (!added) {
+        QMessageBox::warning(this, "Ошибка", "Участник в строке " + QString::number(row) + " не соответствует ни одной возрастной группе");
+    }
+}
+
+void MainWindow::addParticipant(vector<double>* groups, const QString& name, int number_of_team, int year, const QTime& start, const QTime& end, int penalty_loop, int row) {
+    bool added = false;
+
+    for (size_t i = 0; i + 1 <= groups->size(); i += 2) {
+        if (year >= groups->at(i) && year <= groups->at(i + 1)) {
+            while (participants->size() <= i / 2) {
+                participants->emplace_back();
+            }
+
+            Participant newParticipant(name, number_of_team, year, start, end, QTime(0, 0).addSecs(start.secsTo(end)), penalty_loop);
+            (*participants)[i / 2].push_back(newParticipant);
+            added = true;
+            break;
+        }
+    }
+
+    if (!added) {
+        QMessageBox::warning(this, "Ошибка", "Участник в строке " + QString::number(row) + " не соответствует ни одной возрастной группе");
+    }
+}
+
 
 void MainWindow::write_column_names(QXlsx::Document &xlsx_output){
     QChar columnLetter = 'A';
@@ -198,11 +227,18 @@ void MainWindow::write_column_names(QXlsx::Document &xlsx_output){
             xlsx_output.write(QString("%1%2").arg(columnLetter).arg(1),"Место");
             columnLetter = QChar((columnLetter).unicode() + 1);
         }
+        if (n == 5 and competitionType == 1){
+            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(1),"Общее время");
+            columnLetter = QChar((columnLetter).unicode() + 1);
+        }
     }
     if ( competitionType == 0){
         xlsx_output.write(QString("%1%2").arg(columnLetter).arg(1),"Общее место");
         columnLetter = QChar((columnLetter).unicode() + 1);
         xlsx_output.write(QString("%1%2").arg(columnLetter).arg(1),"Всего очков");
+    }
+    else{
+        xlsx_output.write(QString("%1%2").arg(columnLetter).arg(1),"Общее место");
     }
 }
 
@@ -268,7 +304,8 @@ void MainWindow::write_data(const std::vector<std::vector<Participant>>& partici
         qDebug() << i;
         write_results(xlsx_output, i);
     }
-    if (!xlsx_output.saveAs("output.xlsx")) {
+    QString xlsxFileName = QFileDialog::getSaveFileName(this, tr("Сохранить файл Excel"), "", tr("Файлы Excel (*.xlsx *.xls)"));
+    if (!xlsx_output.saveAs(xlsxFileName)) {
         QMessageBox::warning(this, "Ошибка", "Не удалось сохранить файл");
     }
 }
@@ -280,8 +317,9 @@ bool MainWindow::areEqual(double a, double b, double epsilon) {
 }
 
 void MainWindow::processing_data(std::vector<std::vector<Participant>>& participants) {
-
+    qDebug()<<"Все ок до цикла";
     for (size_t i = 0; i < participants.size(); ++i) {
+        qDebug()<<"Все ок после цикла";
         // Сортируем результаты по очкам для каждого соревнования
         if (competitionType == 0){
             processing_olympic_games(participants, i);
@@ -362,8 +400,10 @@ void MainWindow::dropEvent(QDropEvent *event)
         QList<QUrl> urlList = event->mimeData()->urls();
         if (urlList.size() == 1 && urlList[0].toLocalFile().endsWith(".xlsx")) {
             filePath = urlList[0].toLocalFile();
-            ui->label->setText("File dropped: " + filePath);
-            // Здесь можно добавить обработку файла
+            QFileInfo fileInfo(filePath);
+            QString fileName = fileInfo.fileName();
+            ui->label->setText(fileName);
+            ui->pushButton_file_choose->setText("Очистить");
         }
     }
 }
@@ -381,4 +421,54 @@ void MainWindow::slotGroup(vector<double> *groups)
 void MainWindow::slotCompetitionType(int competitionType)
 {
     this->competitionType = competitionType;
+}
+
+void MainWindow::on_pushButton_download_olympic_games_clicked()
+{
+    download_example(":/examples/Пример олимпийских игр.xlsx");
+}
+
+void MainWindow::on_pushButton_download_biathlon_clicked()
+{
+    download_example(":/examples/Пример биатлона.xlsx");
+}
+
+void MainWindow::download_example(QString resourcePath){
+
+
+    QString destinationPath = QFileDialog::getSaveFileName(this, tr("Сохранить файл Excel"), "", tr("Файлы Excel (*.xlsx *.xls)"));
+
+    QFile file(resourcePath);
+    if (file.exists()) {
+        if (file.copy(destinationPath)) {
+            QMessageBox::information(this, "Успешно", "Файл успешно скачан!");
+        } else {
+            QMessageBox::warning(this, "Ошибка", "Не удалось сохранить файл.");
+        }
+    } else {
+        QMessageBox::warning(this, "Ошибка", "Такого файла нет.");
+    }
+}
+
+void MainWindow::on_pushButton_file_choose_clicked()
+{
+    if (filePath.isEmpty()) {
+        filePath = QFileDialog::getOpenFileName(this, tr("Выберите файл Excel"), "", tr("Файлы Excel (*.xlsx *.xls)"));
+        if (!filePath.isEmpty()){
+            ui->pushButton_file_choose->setText("Очистить");
+            QFileInfo fileInfo(filePath);
+            QString fileName = fileInfo.fileName();
+            ui->label->setText(fileName);
+        }
+    }
+    else{
+        filePath.clear();
+        ui->pushButton_file_choose->setText("Выбрать");
+        ui->label->setText("Файл");
+    }
+}
+
+void MainWindow::on_pushButton_info_clicked()
+{
+    infoWindow->show();
 }

@@ -7,6 +7,8 @@ CreateCompetition::CreateCompetition(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->radioButton_olympic_games->setChecked(true);
+    setWindowTitle("Настройки соревнования");
+
 }
 
 CreateCompetition::~CreateCompetition()
@@ -25,6 +27,19 @@ void CreateCompetition::on_pushButton_add_group_clicked()
 
     spinbox1->setRange(2000, 2100);
     spinbox2->setRange(2000, 2100);
+    QString spinboxStyle =  "QSpinBox {"
+                            "font-family: 'Montserrat SemiBold';"
+                            "font-size: 10pt;"
+                            "font-weight: bold;"
+                            "background-color: #292949;"
+                            "color: white;"
+                            "border: 2px solid #F5654A;"
+                            "border-radius: 6px;"
+                            "padding: 6px;"
+                            "}";
+
+        spinbox1->setStyleSheet(spinboxStyle);
+        spinbox2->setStyleSheet(spinboxStyle);
 
     // Добавляем их в gridLayout вашего окна на новую строку
     ui->gridLayout_groups->addWidget(spinbox1, groupCount - 1, 0); // Добавляем в столбец 0

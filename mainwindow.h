@@ -20,6 +20,7 @@
 #include "xlsxworkbook.h"
 
 #include "createcompetition.h"
+#include "infowindow.h"
 namespace Ui {
 class MainWindow;
 }
@@ -39,6 +40,18 @@ public:
     void dropEvent(QDropEvent *event) override;
     void processing_olympic_games(std::vector<std::vector<Participant> > &participants, int i);
     void processing_biathlon(std::vector<std::vector<Participant> > &participants, int i);
+    void clear_data();
+    void download_example(QString example);
+    void readColumnNames(QXlsx::Document& xlsx, vector<QString>* colNames);
+    void readParticipants(QXlsx::Document& xlsx, vector<double>* groups);
+    bool processCompetitionType0(QXlsx::Document& xlsx, int row, vector<double>& scores);
+    bool processCompetitionType1(QXlsx::Document& xlsx, int row, QTime& start, QTime& end, int& penalty_loop);
+    QTime convertToTime(QXlsx::Cell* cell);
+    void addParticipant(vector<double>* groups, const QString& name, int number_of_team, int year, const vector<double>& scores, int row);
+    void addParticipant(vector<double>* groups, const QString& name, int number_of_team, int year, const QTime& start, const QTime& end, int penalty_loop, int row);
+
+
+
 
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
@@ -48,15 +61,24 @@ private slots:
 
     void on_pushButton_createCompetition_clicked();
 
+    void on_pushButton_download_olympic_games_clicked();
+
+    void on_pushButton_download_biathlon_clicked();
+
+    void on_pushButton_file_choose_clicked();
+
+    void on_pushButton_info_clicked();
+
 public slots:
     void slotGroup(vector<double>* groups);
     void slotCompetitionType(int competitionType);
 
 private:
     CreateCompetition *createCompetition;
+    InfoWindow *infoWindow;
     int groupCount;
     vector<vector<Participant>> *participants;
-    vector<double> *groups;
+    vector<double> *groups = nullptr;
     vector <QString>* colNames;
     QString filePath;
     int competitionType = 0;

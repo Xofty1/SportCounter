@@ -34,17 +34,23 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
     data/Participant.cpp \
-    createcompetition.cpp
+    createcompetition.cpp \
+    infowindow.cpp
 
 HEADERS += \
         mainwindow.h \
-    createcompetition.h
+    createcompetition.h \
+    infowindow.h
 
 FORMS += \
         mainwindow.ui \
-    createcompetition.ui
+    createcompetition.ui \
+    infowindow.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+RESOURCES += \
+    files.qrc

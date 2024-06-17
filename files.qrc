@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>examples/Пример биатлона.xlsx</file>
+        <file>examples/Пример олимпийских игр.xlsx</file>
+    </qresource>
+</RCC>
