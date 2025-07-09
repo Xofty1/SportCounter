@@ -151,8 +151,12 @@ bool MainWindow::processCompetitionType1(QXlsx::Document& xlsx, int row, QTime& 
         start = convertToTime(startCell);
         end = convertToTime(endCell);
 
-        if (!start.isValid() || !end.isValid()) {
-            QMessageBox::warning(this, "Ошибка", "Невалиное время в ячейке");
+        if (!start.isValid()) {
+            QMessageBox::warning(this, "Ошибка", "Невалидное время в ячейке СТАРТ в ряду " + QString::number(row));
+            return false;
+        }
+        if ( !end.isValid()) {
+            QMessageBox::warning(this, "Ошибка", "Невалидное время в ячейке ФИНИШ в ряду " + QString::number(row));
             return false;
         }
     } else {
@@ -167,11 +171,11 @@ QTime MainWindow::convertToTime(QXlsx::Cell* cell) {
     QString cellValue = cell->value().toString();
     QStringList timeParts = cellValue.split('.');
 
-    int hours = timeParts[0].toInt();
-    int minutes = timeParts[1].toInt();
-    int seconds = timeParts[2].toInt();
+    int minutes = timeParts[0].toInt();
+        int seconds = timeParts[1].toInt();
+        int milliseconds = timeParts.size() > 2 ? timeParts[2].toInt() : 0;
 
-    return QTime(hours, minutes, seconds);
+        return QTime(0, minutes, seconds, milliseconds);
 }
 
 void MainWindow::addParticipant(vector<double>* groups, const QString& name, int number_of_team, int year, const vector<double>& scores, int row) {
@@ -204,7 +208,7 @@ void MainWindow::addParticipant(vector<double>* groups, const QString& name, int
                 participants->emplace_back();
             }
 
-            Participant newParticipant(name, number_of_team, year, start, end, QTime(0, 0).addSecs(start.secsTo(end)), penalty_loop);
+            Participant newParticipant(name, number_of_team, year, start, end, QTime(0, 0).addMSecs(start.msecsTo(end)), penalty_loop);
             (*participants)[i / 2].push_back(newParticipant);
             added = true;
             break;
@@ -271,11 +275,17 @@ void MainWindow::write_results(QXlsx::Document &xlsx_output, size_t i){
         }
         else{
             columnLetter = QChar((columnLetter).unicode() + 1);
-            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), (*participants)[i].at(j).getEnd());
+            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift),
+                (*participants)[i].at(j).getEnd().toString("mm:ss.zzz"));
+            //xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), (*participants)[i].at(j).getEnd());
             columnLetter = QChar((columnLetter).unicode() + 1);
-            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), (*participants)[i].at(j).getStart());
+            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift),
+                (*participants)[i].at(j).getStart().toString("mm:ss.zzz"));
+            //xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), (*participants)[i].at(j).getStart());
             columnLetter = QChar((columnLetter).unicode() + 1);
-            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), (*participants)[i].at(j).getTotalTime());
+            xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift),
+                (*participants)[i].at(j).getTotalTime().toString("mm:ss.zzz"));
+
             columnLetter = QChar((columnLetter).unicode() + 1);
             xlsx_output.write(QString("%1%2").arg(columnLetter).arg(j + shift), (*participants)[i].at(j).getPenaltyLoop());
 
@@ -337,7 +347,7 @@ void MainWindow::processing_data(std::vector<std::vector<Participant>>& particip
         // Обновляем места участников
         for (size_t t = 0; t < participants[i].size(); ++t) {
             if (t > 0 && !areEqual(participants[i][t].getTotalPoints(), participants[i][t - 1].getTotalPoints(), 1e-4)) {
-                place = t + 1;
+                place = place + 1;
             }
             participants[i][t].setPlace(place);
         }
